@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/* Brand: taken from the Brandon Electric truck — deep burgundy, warm white,
+   charcoal, and a restrained muted gold used for rules and small accents. */
+@theme {
+  --color-burgundy: #5e1a28;
+  --color-burgundy-700: #74222f;
+  --color-burgundy-900: #43111b;
+  --color-cream: #f8f3ea;
+  --color-paper: #fffdf8;
+  --color-charcoal: #24211f;
+  --color-charcoal-600: #4a4542;
+  --color-line: #ddd3c3;
+  --color-gold: #b8975e;
+  --color-gold-light: #d8bd8a; /* text on burgundy/charcoal */
+  --color-gold-dark: #7d6131; /* text on cream */
+  --color-danger: #9b1c1c;
+  --color-ok: #1f5e3a;
+
+  --font-display: "Archivo Variable", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Public Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-stretch: 80%;
+}
+
+/* Truck-livery pinstripe: two thin gold rules. */
+.pinstripe {
+  height: 7px;
+  border-top: 2px solid var(--color-gold);
+  border-bottom: 2px solid var(--color-gold);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+}
+.on-light :focus-visible,
+.on-light:focus-visible {
+  outline-color: var(--color-burgundy);
+}
+
+.field {
+  width: 100%;
+  border: 1.5px solid #a89c8a;
+  background: var(--color-paper);
+  border-radius: 0.375rem;
+  padding: 0.7rem 0.8rem;
+  font-size: 1rem; /* prevents iOS zoom */
+  color: var(--color-charcoal);
+}
+.field:focus-visible {
+  outline: 3px solid var(--color-burgundy);
+  outline-offset: 1px;
+  border-color: var(--color-burgundy);
+}
+.field[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  border-width: 2px;
+}
