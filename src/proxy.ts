@@ -28,8 +28,26 @@ export async function proxy(req: NextRequest) {
   let res = NextResponse.next({ request: req });
   const path = req.nextUrl.pathname;
 
+  const needsSupabase = path.startsWith("/tracker") || path.startsWith("/api/bid-requests");
+  if (needsSupabase && process.env.SUPABASE_URL) {
+    const problem = supabaseConfigProblem(process.env.SUPABASE_URL);
+    if (problem) {
+      console.error(`[config] ${problem}`);
+      if (path.startsWith("/api")) {
+        return NextResponse.json(
+          { ok: false, message: "Bid requests are temporarily unavailable. Please call instead." },
+          { status: 503 },
+        );
+      }
+      return new NextResponse(setupPage(problem), {
+        status: 503,
+        headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex" },
+      });
+    }
+  }
+
   if (path.startsWith("/tracker") && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    const supabase = createServerClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+    const supabase = createServerClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_ANON_KEY.trim(), {
       cookies: {
         getAll: () => req.cookies.getAll(),
         setAll: (list) => {
@@ -39,13 +57,43 @@ export async function proxy(req: NextRequest) {
         },
       },
     });
-    await supabase.auth.getUser();
+    try {
+      await supabase.auth.getUser();
+    } catch (e) {
+      // Can't reach Supabase: let the page decide (it will send the user to sign in).
+      console.error("[proxy] Supabase session refresh failed", e);
+    }
   }
 
   if (process.env.SITE_MODE !== "live" || path.startsWith("/tracker") || path.startsWith("/api")) {
     res.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return res;
+}
+
+/** Plain-English description of a malformed SUPABASE_URL. Never echoes the value. */
+function supabaseConfigProblem(raw: string): string | null {
+  const v = raw.trim();
+  if (/^["']|["']$/.test(v)) return "SUPABASE_URL has quote marks around it. Remove them.";
+  if (!/^https:\/\//i.test(v)) return "SUPABASE_URL must start with https:// (for example https://abcd1234.supabase.co).";
+  try {
+    const u = new URL(v);
+    if (u.pathname !== "/" && u.pathname !== "") {
+      return "SUPABASE_URL should end at .supabase.co, with nothing after it (no /rest/v1 or dashboard link).";
+    }
+  } catch {
+    return "SUPABASE_URL is not a valid web address.";
+  }
+  return null;
+}
+
+function setupPage(problem: string) {
+  const esc = problem.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tracker setup needed</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:36rem;margin:4rem auto;padding:0 1rem;color:#24211f;background:#f8f3ea">
+<h1 style="color:#5e1a28">Bid tracker setup needed</h1>
+<p><strong>${esc}</strong></p>
+<p>Fix it in Vercel under Settings &rarr; Environment Variables, then redeploy.</p></body></html>`;
 }
 
 export const config = {

@@ -9,7 +9,7 @@ import { cookies } from "next/headers";
  */
 
 function env(name: string): string {
-  const v = process.env[name];
+  const v = process.env[name]?.trim();
   if (!v) throw new Error(`${name} is not set`);
   return v;
 }
