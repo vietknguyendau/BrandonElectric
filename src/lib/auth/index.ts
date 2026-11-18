@@ -73,9 +73,22 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   if (dataBackend() === "supabase") {
     const { supabaseAsUser } = await import("../supabase/server");
     const db = await supabaseAsUser();
-    const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) return generic;
-    if (!(await getStaffUser())) {
+    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    if (error || !data.user) return generic;
+    // Check the allowlist with this same client: it already holds the new session,
+    // whereas a fresh client would read the request's (still signed-out) cookies.
+    const { data: staffRow, error: staffError } = await db
+      .from("staff")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .eq("active", true)
+      .maybeSingle();
+    if (staffError) {
+      console.error("[auth] staff lookup failed", staffError.message);
+      await db.auth.signOut();
+      return { ok: false, message: "Signed in, but the staff list couldn't be checked. Try again in a minute." };
+    }
+    if (!staffRow) {
       await db.auth.signOut();
       return { ok: false, message: "This account isn't on the staff list. Ask Brandon to add you." };
     }
